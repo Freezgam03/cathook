@@ -94,7 +94,7 @@ Vector GetClosestCornerToArea(CNavArea *CornerOf, const Vector &target)
 float getAreaScoreMultiplier(float score)
 {
     // Formula to calculate by how much % to reduce the distance by (https://xaktly.com/LogisticFunctions.html)
-    return 2.0f * ((0.9f) / (1.0f + exp(-0.8f * score)) - 0.45f);
+    return 2.0f * ((0.9f) / (1.0f + exp(-0.2f * score)) - 0.45f);
 }
 
 float getZBetweenAreas(CNavArea *start, CNavArea *end)
