@@ -127,7 +127,6 @@ static ignore_status vischeck(CNavArea *begin, CNavArea *end)
 }
 static ignore_status runIgnoreChecks(CNavArea *begin, CNavArea *end)
 {
-    // No z check Should be done for stairs as they can go very far up
     if (getZBetweenAreas(begin, end) > 70)
         return const_ignored;
     if (!vischecks)
@@ -743,21 +742,35 @@ static void cm()
         DoSlowAim(next);
         current_user_cmd->viewangles = next;
     }
+    // Used to determine if we want to jump or if we want to crouch
+    static bool crouch          = false;
+    static int ticks_since_jump = 0;
+
     // Detect when jumping is necessary
-    if ((!(g_pLocalPlayer->holding_sniper_rifle && g_pLocalPlayer->bZoomed) && crumb_vec->z - g_pLocalPlayer->v_Origin.z > 18 && last_jump.check(200)) || (last_jump.check(200) && inactivity.check(*stuck_time / 2)))
+    if ((!(g_pLocalPlayer->holding_sniper_rifle && g_pLocalPlayer->bZoomed) && (crouch || crumb_vec->z - g_pLocalPlayer->v_Origin.z > 18) && last_jump.check(200)) || (last_jump.check(200) && inactivity.check(*stuck_time / 2)))
     {
         auto local = findClosestNavSquare(g_pLocalPlayer->v_Origin);
         // Check if current area allows jumping
         if (!local || !(local->m_attributeFlags & (NAV_MESH_NO_JUMP | NAV_MESH_STAIRS)))
         {
-            static bool flip_action = false;
-            // Make it crouch the second tick
-            current_user_cmd->buttons |= flip_action ? IN_DUCK : IN_JUMP;
+            // Make it crouch until we land, but jump the first tick
+            current_user_cmd->buttons |= crouch ? IN_DUCK : IN_JUMP;
 
-            // Update jump timer now
-            if (flip_action)
+            // Only flip to crouch state, not to jump state
+            if (!crouch)
+            {
+                crouch           = true;
+                ticks_since_jump = 0;
+            }
+            ticks_since_jump++;
+
+            // Update jump timer now since we are back on ground
+            if (crouch && CE_INT(LOCAL_E, netvar.iFlags) & FL_ONGROUND && ticks_since_jump > 3)
+            {
+                // Reset
+                crouch = false;
                 last_jump.update();
-            flip_action = !flip_action;
+            }
         }
     }
     // Walk to next crumb

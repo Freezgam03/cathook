@@ -65,8 +65,6 @@ static Timer build_timer{};
 static Timer rotation_timer{};
 // Uses to check how long until we should resend the "build" command
 static Timer build_command_timer{};
-// Dispenser Nav cooldown
-static Timer dispenser_nav_timer{};
 // Last Yaw used for building
 static float build_current_rotation = -180.0f;
 // How many times have we tried to place?
@@ -162,7 +160,7 @@ static void CreateMove()
         int metal = -1;
         if (engineer_mode && g_pLocalPlayer->clazz == tf_engineer)
             metal = CE_INT(LOCAL_E, netvar.m_iAmmo + 12);
-        if ((dispenser_nav_timer.test_and_set(1000) && getDispenserHealthAndAmmo(metal)))
+        if (getDispenserHealthAndAmmo(metal))
             return;
         if (getHealthAndAmmo(metal))
             return;
