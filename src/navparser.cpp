@@ -90,6 +90,13 @@ Vector GetClosestCornerToArea(CNavArea *CornerOf, const Vector &target)
     return (*bestVec + *bestVec2) / 2;
 }
 
+// Get the area score multiplier
+float getAreaScoreMultiplier(float score)
+{
+    // Formula to calculate by how much % to reduce the distance by (https://xaktly.com/LogisticFunctions.html)
+    return 2.0f * ((0.9f) / (1.0f + exp(-0.8f * score)) - 0.45f);
+}
+
 float getZBetweenAreas(CNavArea *start, CNavArea *end)
 {
     float z1 = GetClosestCornerToArea(start, end->m_center).z;
@@ -428,7 +435,7 @@ struct Graph : public micropather::Graph
             {
                 float score = area_score[neighbour->m_id];
                 // Formula to calculate by how much % to reduce the distance by (https://xaktly.com/LogisticFunctions.html)
-                float multiplier = 2.0f * ((0.9f) / (1.0f + exp(-0.8f * score)) - 0.45f);
+                float multiplier = getAreaScoreMultiplier(score);
                 distance *= 1.0f - multiplier;
             }
 
@@ -781,7 +788,7 @@ static void drawcrumbs()
         return;
     if (draw_priorities)
     {
-        if (navfile->m_areas.size() && enabled && nav::status == nav::on)
+        if (navfile && navfile->m_areas.size() && enabled && nav::status == nav::on)
             for (auto &area : navfile->m_areas)
             {
                 Vector &pos = area.m_center;
@@ -790,9 +797,8 @@ static void drawcrumbs()
                 Vector wts;
                 if (draw::WorldToScreen(pos, wts))
                 {
-                    float score = area_score[area.m_id];
-                    // Formula to calculate by how much % to reduce the distance by (https://xaktly.com/LogisticFunctions.html)
-                    float multiplier        = 2.0f * ((0.9f) / (1.0f + exp(-0.8f * score)) - 0.45f);
+                    float score             = area_score[area.m_id];
+                    float multiplier        = getAreaScoreMultiplier(score);
                     std::string draw_string = std::to_string(multiplier);
                     draw::String(wts.x, wts.y, colors::white, draw_string.c_str(), *fonts::esp);
                 }
@@ -812,7 +818,7 @@ static void drawcrumbs()
             o2          = &endPoint;
             float score = area_score[crumbs.at(i)->m_id];
             // Formula to calculate by how much % to reduce the distance by (https://xaktly.com/LogisticFunctions.html)
-            float multiplier = 2.0f * ((0.9f) / (1.0f + exp(-0.8f * score)) - 0.45f);
+            float multiplier = getAreaScoreMultiplier(score);
             // Calculate the color
             draw_color = colors::Fade(colors::white, colors::red, multiplier * (PI / 2.0));
         }
@@ -821,7 +827,7 @@ static void drawcrumbs()
             o2          = &crumbs[i + 1]->m_center;
             float score = area_score[crumbs.at(i + 1)->m_id];
             // Formula to calculate by how much % to reduce the distance by (https://xaktly.com/LogisticFunctions.html)
-            float multiplier = 2.0f * ((0.9f) / (1.0f + exp(-0.8f * score)) - 0.45f);
+            float multiplier = getAreaScoreMultiplier(score);
             // Calculate the color
             draw_color = colors::Fade(colors::white, colors::red, multiplier * (PI / 2.0));
         }
