@@ -18,6 +18,7 @@ static settings::Boolean enabled{ "misc.pathing", "true" };
 static settings::Boolean vischecks{ "misc.pathing.pathtime-vischecks", "true" };
 static settings::Boolean vischeckBlock{ "misc.pathing.pathtime-vischeck-block", "false" };
 static settings::Boolean draw{ "misc.pathing.draw", "false" };
+static settings::Boolean draw_priorities{ "misc.pathing.draw-priorities", "false" };
 static settings::Boolean look{ "misc.pathing.look-at-path", "false" };
 static settings::Int stuck_time{ "misc.pathing.stuck-time", "4000" };
 static settings::Int unreachable_time{ "misc.pathing.unreachable-time", "1000" };
@@ -658,7 +659,7 @@ void updateAreaScore()
         // Get area
         CNavArea *closest_area = nullptr;
         if (ent->m_vecDormantOrigin())
-            findClosestNavSquare(*ent->m_vecDormantOrigin());
+            closest_area = findClosestNavSquare(*ent->m_vecDormantOrigin());
 
         // Add usage to area if valid
         if (closest_area)
@@ -778,25 +779,57 @@ static void drawcrumbs()
         return;
     if (!LOCAL_E->m_bAlivePlayer())
         return;
+    if (draw_priorities)
+    {
+        if (navfile->m_areas.size() && enabled && nav::status == nav::on)
+            for (auto &area : navfile->m_areas)
+            {
+                Vector &pos = area.m_center;
+                if (pos.DistTo(LOCAL_E->m_vecOrigin()) > 300.0f)
+                    continue;
+                Vector wts;
+                if (draw::WorldToScreen(pos, wts))
+                {
+                    float score = area_score[area.m_id];
+                    // Formula to calculate by how much % to reduce the distance by (https://xaktly.com/LogisticFunctions.html)
+                    float multiplier        = 2.0f * ((0.9f) / (1.0f + exp(-0.8f * score)) - 0.45f);
+                    std::string draw_string = std::to_string(multiplier);
+                    draw::String(wts.x, wts.y, colors::white, draw_string.c_str(), *fonts::esp);
+                }
+            }
+    }
     if (crumbs.size() < 2)
         return;
     for (size_t i = 0; i < crumbs.size(); i++)
     {
         Vector wts1, wts2, *o1, *o2;
+        rgba_t draw_color = colors::white;
         if (crumbs.size() - 1 == i)
         {
             if (!endPoint.IsValid())
                 break;
 
-            o2 = &endPoint;
+            o2          = &endPoint;
+            float score = area_score[crumbs.at(i)->m_id];
+            // Formula to calculate by how much % to reduce the distance by (https://xaktly.com/LogisticFunctions.html)
+            float multiplier = 2.0f * ((0.9f) / (1.0f + exp(-0.8f * score)) - 0.45f);
+            // Calculate the color
+            draw_color = colors::Fade(colors::white, colors::red, multiplier * (PI / 2.0));
         }
         else
-            o2 = &crumbs[i + 1]->m_center;
+        {
+            o2          = &crumbs[i + 1]->m_center;
+            float score = area_score[crumbs.at(i + 1)->m_id];
+            // Formula to calculate by how much % to reduce the distance by (https://xaktly.com/LogisticFunctions.html)
+            float multiplier = 2.0f * ((0.9f) / (1.0f + exp(-0.8f * score)) - 0.45f);
+            // Calculate the color
+            draw_color = colors::Fade(colors::white, colors::red, multiplier * (PI / 2.0));
+        }
 
         o1 = &crumbs[i]->m_center;
         if (draw::WorldToScreen(*o1, wts1) && draw::WorldToScreen(*o2, wts2))
         {
-            draw::Line(wts1.x, wts1.y, wts2.x - wts1.x, wts2.y - wts1.y, colors::white, 0.3f);
+            draw::Line(wts1.x, wts1.y, wts2.x - wts1.x, wts2.y - wts1.y, draw_color, 0.7f);
         }
     }
     Vector wts;
